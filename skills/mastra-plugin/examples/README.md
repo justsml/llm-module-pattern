@@ -4,9 +4,9 @@ This folder contains example implementations demonstrating key Mastra patterns.
 
 ## Examples
 
-### 1. [Generative UI](./generative-ui/)
+### 1. [Trip Planner](./trip-planner/)
 
-Demonstrates dynamic UI rendering based on tool execution states in a chat interface.
+A weather-aware trip planning assistant with dynamic UI that updates as the agent works.
 
 **Key Patterns:**
 - Tool state handling (`input-streaming`, `input-available`, `output-available`, `output-error`)
@@ -22,9 +22,9 @@ Demonstrates dynamic UI rendering based on tool execution states in a chat inter
 
 ---
 
-### 2. [Nested Agent Streams](./nested-agent-streams/)
+### 2. [Research Bot](./research-bot/)
 
-Shows how to call agents from within tools and stream their output to the UI.
+A research assistant that spawns specialized sub-agents for deep analysis.
 
 **Key Patterns:**
 - `context.mastra.getAgent()` - Retrieve agents in tools
@@ -40,9 +40,9 @@ Shows how to call agents from within tools and stream their output to the UI.
 
 ---
 
-### 3. [Branching Workflow](./branching-workflow/)
+### 3. [Ask User for Stuff](./ask-user-for-stuff/)
 
-Implements a workflow with conditional branching and human-in-the-loop approval.
+An order processing workflow that pauses to ask humans for approval on big purchases.
 
 **Key Patterns:**
 - `.branch()` for conditional routing
@@ -79,13 +79,13 @@ example-name/
 ```typescript
 // src/mastra/index.ts
 import { Mastra } from '@mastra/core';
-import { weatherAgent } from './plugins/weather/agent';
-import { researchAgent, analysisAgent } from './plugins/research/agents';
-import { orderProcessingWorkflow } from './plugins/order/workflow';
+import { tripPlannerAgent } from './plugins/trip-planner/agent';
+import { researchAgent, analysisAgent } from './plugins/research-bot/agents';
+import { orderProcessingWorkflow } from './plugins/ask-user-for-stuff/workflow';
 
 export const mastra = new Mastra({
   agents: {
-    weatherAgent,
+    tripPlannerAgent,
     researchAgent,
     analysisAgent,
   },

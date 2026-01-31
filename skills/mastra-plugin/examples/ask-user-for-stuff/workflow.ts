@@ -1,4 +1,4 @@
-// examples/branching-workflow/workflow.ts
+// examples/ask-user-for-stuff/workflow.ts
 import { createWorkflow, createStep } from '@mastra/core/workflows';
 import { z } from 'zod';
 import {

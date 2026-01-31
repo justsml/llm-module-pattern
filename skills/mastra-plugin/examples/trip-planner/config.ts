@@ -1,4 +1,4 @@
-// examples/generative-ui/config.ts
+// examples/trip-planner/config.ts
 import { z } from 'zod';
 
 export const weatherPluginConfig = {

@@ -1,4 +1,4 @@
-// examples/branching-workflow/config.ts
+// examples/ask-user-for-stuff/config.ts
 import { z } from 'zod';
 
 export const orderPluginConfig = {

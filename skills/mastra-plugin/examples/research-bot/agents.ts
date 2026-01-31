@@ -1,4 +1,4 @@
-// examples/nested-agent-streams/agents.ts
+// examples/research-bot/agents.ts
 import { Agent } from '@mastra/core/agent';
 import { researchPluginConfig } from './config';
 import { deepResearchTool } from './tools';

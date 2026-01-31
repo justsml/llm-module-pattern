@@ -1,18 +1,18 @@
-# Nested Agent Streams Example
+# Research Bot
 
-This example demonstrates how to stream output from an agent that is called from within a tool, creating rich, real-time UI experiences.
+A research assistant that spawns a specialized analysis sub-agent to dive deep into topics. Watch it think in real-time!
 
 ## Features
 
-- **Nested Agent Invocation**: Call agents from within tools
-- **Stream Piping**: Real-time streaming of nested agent output
-- **Custom Events**: Progress tracking via `context.writer.custom()`
+- **Nested Agent Invocation**: The research bot calls an analysis agent from within its tools
+- **Stream Piping**: See the nested agent's thinking streamed live to the UI
+- **Custom Events**: Progress tracking shows what stage of research we're in
 - **Multi-part Rendering**: Handle `data-tool-agent` parts in the UI
 
 ## File Structure
 
 ```
-nested-agent-streams/
+research-bot/
 ├── config.ts    # Plugin config and Zod schemas
 ├── agents.ts    # Research agent + Analysis agent definitions
 ├── tools.ts     # Deep research tool with nested agent
@@ -81,7 +81,7 @@ if (part.type === 'data-custom') {
 ```typescript
 // src/mastra/index.ts
 import { Mastra } from '@mastra/core';
-import { researchAgent, analysisAgent } from './plugins/research/agents';
+import { researchAgent, analysisAgent } from './plugins/research-bot/agents';
 
 export const mastra = new Mastra({
   agents: {
@@ -94,10 +94,10 @@ export const mastra = new Mastra({
 ### Use in Your App
 
 ```tsx
-import { NestedAgentStreamsDemo } from './plugins/research/ui';
+import { ResearchBotDemo } from './plugins/research-bot/ui';
 
 export default function ResearchPage() {
-  return <NestedAgentStreamsDemo />;
+  return <ResearchBotDemo />;
 }
 ```
 

@@ -1,17 +1,17 @@
-# Generative UI Example
+# Trip Planner
 
-This example demonstrates how to render dynamic UI components based on tool execution states in a chat interface.
+A weather-aware trip planning assistant that shows dynamic UI as it fetches weather data for your destination.
 
 ## Features
 
-- **Dynamic Tool Rendering**: Different UI states for tool execution (streaming, loading, complete, error)
-- **Weather Card Component**: Rich visual display of weather data
+- **Dynamic Tool Rendering**: Watch the UI update as the agent thinks, fetches, and displays weather
+- **Weather Card Component**: Beautiful weather display with temperature, conditions, and forecasts
 - **Real-time Updates**: Streaming responses with progressive UI updates
 
 ## File Structure
 
 ```
-generative-ui/
+trip-planner/
 ├── config.ts    # Plugin config and Zod schemas
 ├── agent.ts     # Weather agent definition
 ├── tools.ts     # Weather tool with wttr.in API
@@ -38,20 +38,20 @@ The UI handles all tool execution states:
 ```typescript
 // src/mastra/index.ts
 import { Mastra } from '@mastra/core';
-import { weatherAgent } from './plugins/weather/agent';
+import { tripPlannerAgent } from './plugins/trip-planner/agent';
 
 export const mastra = new Mastra({
-  agents: { weatherAgent },
+  agents: { tripPlannerAgent },
 });
 ```
 
 ### 2. Use the UI Component
 
 ```tsx
-import { GenerativeUIDemo } from './plugins/weather/ui';
+import { TripPlannerDemo } from './plugins/trip-planner/ui';
 
-export default function WeatherPage() {
-  return <GenerativeUIDemo />;
+export default function TripPlannerPage() {
+  return <TripPlannerDemo />;
 }
 ```
 

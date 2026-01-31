@@ -1,4 +1,4 @@
-// examples/generative-ui/tools.ts
+// examples/trip-planner/tools.ts
 import { createTool } from '@mastra/core/tools';
 import { weatherInputSchema, weatherOutputSchema } from './config';
 

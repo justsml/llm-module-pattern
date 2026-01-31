@@ -1,4 +1,4 @@
-// examples/nested-agent-streams/ui.tsx
+// examples/research-bot/ui.tsx
 'use client';
 
 import { useState } from 'react';
@@ -89,16 +89,17 @@ function CustomEventBadge({ event }: { event: { type: string; data: Record<strin
 }
 
 /**
- * Nested Agent Streams Demo
+ * Research Bot Demo
  *
- * Demonstrates streaming output from an agent called within a tool.
+ * A research assistant that spawns a specialized analysis agent
+ * and streams its thinking to the UI in real-time.
  */
-export function NestedAgentStreamsDemo() {
+export function ResearchBotDemo() {
   const [input, setInput] = useState('');
 
   const { messages, sendMessage, status } = useChat({
     transport: new DefaultChatTransport({
-      api: `${MASTRA_BASE_URL}/api/agents/research-plugin/chat`,
+      api: `${MASTRA_BASE_URL}/api/agents/research-bot/chat`,
     }),
   });
 
@@ -112,7 +113,7 @@ export function NestedAgentStreamsDemo() {
   return (
     <div className="mx-auto max-w-3xl space-y-6 p-6">
       <div className="text-center">
-        <h1 className="text-2xl font-bold">Research Assistant</h1>
+        <h1 className="text-2xl font-bold">Research Bot</h1>
         <p className="text-gray-500">
           Watch the nested analysis agent think in real-time
         </p>
@@ -223,4 +224,4 @@ export function NestedAgentStreamsDemo() {
   );
 }
 
-export default NestedAgentStreamsDemo;
+export default ResearchBotDemo;

@@ -1,4 +1,4 @@
-// examples/nested-agent-streams/config.ts
+// examples/research-bot/config.ts
 import { z } from 'zod';
 
 export const researchPluginConfig = {

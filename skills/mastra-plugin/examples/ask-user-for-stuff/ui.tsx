@@ -1,4 +1,4 @@
-// examples/branching-workflow/ui.tsx
+// examples/ask-user-for-stuff/ui.tsx
 'use client';
 
 import { useState } from 'react';
@@ -262,12 +262,12 @@ function OrderResult({ result }: { result: OrderOutput }) {
 }
 
 /**
- * Branching Workflow Demo
+ * Ask User for Stuff Demo
  *
- * Demonstrates a workflow with conditional branching based on order type.
- * Priority orders over $1000 require human approval (suspend/resume).
+ * An order processing workflow that pauses to ask humans for approval.
+ * Priority orders over $1000 require a thumbs up before processing!
  */
-export function BranchingWorkflowDemo() {
+export function AskUserForStuffDemo() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [progressEvents, setProgressEvents] = useState<
     Array<{ step: string; status: string; message: string }>
@@ -367,9 +367,9 @@ export function BranchingWorkflowDemo() {
   return (
     <div className="mx-auto max-w-2xl space-y-6 p-6">
       <div className="text-center">
-        <h1 className="text-2xl font-bold">Order Processing Workflow</h1>
+        <h1 className="text-2xl font-bold">Ask User for Stuff</h1>
         <p className="text-gray-500">
-          Branching workflow with human-in-the-loop approval
+          Big orders need a thumbs up before we ship!
         </p>
       </div>
 
@@ -390,4 +390,4 @@ export function BranchingWorkflowDemo() {
   );
 }
 
-export default BranchingWorkflowDemo;
+export default AskUserForStuffDemo;

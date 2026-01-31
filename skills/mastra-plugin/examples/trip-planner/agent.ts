@@ -1,4 +1,4 @@
-// examples/generative-ui/agent.ts
+// examples/trip-planner/agent.ts
 import { Agent } from '@mastra/core/agent';
 import { weatherPluginConfig } from './config';
 import { weatherTool } from './tools';

@@ -1,4 +1,4 @@
-// examples/nested-agent-streams/tools.ts
+// examples/research-bot/tools.ts
 import { createTool } from '@mastra/core/tools';
 import { researchInputSchema, researchOutputSchema } from './config';
 

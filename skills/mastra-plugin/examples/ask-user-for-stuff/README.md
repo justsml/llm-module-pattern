@@ -1,18 +1,18 @@
-# Branching Workflow Example
+# Ask User for Stuff
 
-This example demonstrates a workflow with conditional branching based on order type, including human-in-the-loop approval for high-value orders.
+An order processing workflow that knows when to pause and ask a human for approval. Big purchases need a thumbs up!
 
 ## Features
 
-- **Conditional Branching**: Routes orders to different processing steps based on type
-- **Suspend/Resume**: High-value priority orders pause for manual approval
-- **Progress Events**: Real-time workflow progress via custom events
-- **Type-Safe Resume**: Exported steps enable typed `resumeData`
+- **Conditional Branching**: Routes orders to different processing steps based on shipping tier
+- **Suspend/Resume**: High-value priority orders ($1000+) pause for manual approval
+- **Progress Events**: Watch the workflow progress in real-time
+- **Type-Safe Resume**: Get full TypeScript safety when resuming suspended workflows
 
 ## File Structure
 
 ```
-branching-workflow/
+ask-user-for-stuff/
 ├── config.ts    # Plugin config and Zod schemas
 ├── workflow.ts  # Workflow with branching and suspend/resume
 ├── ui.tsx       # React components for workflow UI
@@ -131,7 +131,7 @@ const result = await run.resume({
 ```typescript
 // src/mastra/index.ts
 import { Mastra } from '@mastra/core';
-import { orderProcessingWorkflow } from './plugins/order/workflow';
+import { orderProcessingWorkflow } from './plugins/ask-user-for-stuff/workflow';
 
 export const mastra = new Mastra({
   workflows: {

@@ -1,4 +1,4 @@
-// examples/generative-ui/ui.tsx
+// examples/trip-planner/ui.tsx
 'use client';
 
 import { useState } from 'react';
@@ -86,17 +86,17 @@ function MessageBubble({
 }
 
 /**
- * Generative UI Chat Demo
+ * Trip Planner Demo
  *
- * This example demonstrates how to render dynamic UI components
- * based on tool execution states in a chat interface.
+ * A weather-aware chat assistant that helps plan trips by
+ * showing real-time weather data with beautiful UI components.
  */
-export function GenerativeUIDemo() {
+export function TripPlannerDemo() {
   const [input, setInput] = useState('');
 
   const { messages, sendMessage, status } = useChat({
     transport: new DefaultChatTransport({
-      api: `${MASTRA_BASE_URL}/api/agents/weather-plugin/chat`,
+      api: `${MASTRA_BASE_URL}/api/agents/trip-planner/chat`,
     }),
   });
 
@@ -111,8 +111,8 @@ export function GenerativeUIDemo() {
     <div className="mx-auto flex h-[600px] max-w-2xl flex-col rounded-xl border bg-white shadow-lg">
       {/* Header */}
       <div className="border-b px-6 py-4">
-        <h2 className="text-lg font-semibold">Weather Assistant</h2>
-        <p className="text-sm text-gray-500">Ask about weather in any city</p>
+        <h2 className="text-lg font-semibold">Trip Planner</h2>
+        <p className="text-sm text-gray-500">Plan your trip with live weather data</p>
       </div>
 
       {/* Messages */}
@@ -209,4 +209,4 @@ export function GenerativeUIDemo() {
   );
 }
 
-export default GenerativeUIDemo;
+export default TripPlannerDemo;
