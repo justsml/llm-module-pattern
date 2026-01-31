@@ -42,18 +42,19 @@ A research assistant that spawns specialized sub-agents for deep analysis.
 
 ### 3. [Ask User for Stuff](./ask-user-for-stuff/)
 
-An order processing workflow that pauses to ask humans for approval on big purchases.
+An agent with client-side tools that render interactive UI for collecting user input.
 
 **Key Patterns:**
-- `.branch()` for conditional routing
-- `suspend()` / `resume()` for human approval
-- Type-safe resume with exported steps
-- Workflow progress events
+- Client-side tools with `addToolResult()` for user responses
+- Confirmation dialogs with variants (default, warning, danger)
+- Multiple choice selectors (single and multi-select)
+- Text input panels (single-line and multiline)
 
 **Files:**
-- `config.ts` - Order schemas
-- `workflow.ts` - Branching workflow with suspend/resume
-- `ui.tsx` - Order form, progress display, approval dialog
+- `config.ts` - Tool schemas (confirmation, multiple choice, text)
+- `agent.ts` - Agent with client-side tools
+- `tools.ts` - Tool definitions
+- `ui.tsx` - Interactive UI components for each tool type
 
 ---
 
@@ -81,16 +82,14 @@ example-name/
 import { Mastra } from '@mastra/core';
 import { tripPlannerAgent } from './plugins/trip-planner/agent';
 import { researchAgent, analysisAgent } from './plugins/research-bot/agents';
-import { orderProcessingWorkflow } from './plugins/ask-user-for-stuff/workflow';
+import { askUserAgent } from './plugins/ask-user-for-stuff/agent';
 
 export const mastra = new Mastra({
   agents: {
     tripPlannerAgent,
     researchAgent,
     analysisAgent,
-  },
-  workflows: {
-    orderProcessingWorkflow,
+    askUserAgent,
   },
 });
 ```

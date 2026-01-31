@@ -1,206 +1,188 @@
 # Ask User for Stuff
 
-An order processing workflow that knows when to pause and ask a human for approval. Big purchases need a thumbs up!
+An agent with client-side tools that render rich interactive UI for collecting user input. Features confirmation dialogs, multiple choice selectors, and text input panels.
 
 ## Features
 
-- **Conditional Branching**: Routes orders to different processing steps based on shipping tier
-- **Suspend/Resume**: High-value priority orders ($1000+) pause for manual approval
-- **Progress Events**: Watch the workflow progress in real-time
-- **Type-Safe Resume**: Get full TypeScript safety when resuming suspended workflows
+- **Confirmation Tool**: Yes/no approval dialogs with customizable variants (default, warning, danger)
+- **Multiple Choice Tool**: Option selectors with single or multi-select support
+- **Text Input Tool**: Free-form text collection with single-line or multiline modes
+- **Client-Side Rendering**: Tools render as interactive UI components, not server-executed
 
 ## File Structure
 
 ```
 ask-user-for-stuff/
-├── config.ts    # Plugin config and Zod schemas
-├── workflow.ts  # Workflow with branching and suspend/resume
-├── ui.tsx       # React components for workflow UI
+├── config.ts    # Tool schemas (confirmation, multiple choice, text input)
+├── agent.ts     # Agent with client-side tools
+├── tools.ts     # Tool definitions
+├── ui.tsx       # React components for each tool type
 └── README.md    # This file
 ```
 
-## Workflow Architecture
+## How Client-Side Tools Work
+
+Unlike server-executed tools, client-side tools render UI and wait for user interaction:
 
 ```
-                    ┌─────────────────┐
-                    │ validateOrder   │
-                    └────────┬────────┘
-                             │
-              ┌──────────────┼──────────────┐
-              │              │              │
-              ▼              ▼              ▼
-      ┌───────────┐  ┌───────────┐  ┌───────────┐
-      │ standard  │  │  express  │  │ priority  │
-      │ (5-7 day) │  │ (1-2 day) │  │(same/next)│
-      └─────┬─────┘  └─────┬─────┘  └─────┬─────┘
-            │              │              │
-            │              │        ┌─────┴─────┐
-            │              │        │  >$1000?  │
-            │              │        └─────┬─────┘
-            │              │              │ yes
-            │              │        ┌─────┴─────┐
-            │              │        │  SUSPEND  │
-            │              │        │ (approval)│
-            │              │        └─────┬─────┘
-            │              │              │
-            └──────────────┼──────────────┘
-                           │
-                    ┌──────┴──────┐
-                    │ finalizeOrder│
-                    └─────────────┘
+1. Agent calls tool with input (e.g., confirmation title/message)
+2. Tool "executes" immediately, returning a placeholder
+3. UI detects tool state 'input-available' and renders interactive component
+4. User interacts with the component (clicks button, selects option)
+5. UI calls addToolResult() with the user's response
+6. Agent receives the result and continues
 ```
 
 ## Key Patterns
 
-### Branching Logic
+### Tool Definition
 
 ```typescript
-.branch([
-  [
-    async ({ inputData }) => inputData.orderType === 'standard',
-    standardProcessingStep,
-  ],
-  [
-    async ({ inputData }) => inputData.orderType === 'express',
-    expressProcessingStep,
-  ],
-  [
-    async () => true, // Default branch
-    priorityProcessingStep,
-  ],
-])
-```
-
-### Suspend/Resume in Steps
-
-```typescript
-const priorityProcessingStep = createStep({
-  // ...
-  resumeSchema: z.object({
-    approved: z.boolean(),
-    approverNotes: z.string().optional(),
+export const confirmationTool = createTool({
+  id: 'askForConfirmation',
+  description: 'Ask the user to confirm or cancel an action',
+  inputSchema: z.object({
+    title: z.string(),
+    message: z.string(),
+    variant: z.enum(['default', 'warning', 'danger']).default('default'),
   }),
-  suspendSchema: z.object({
-    reason: z.string(),
-    orderDetails: z.object({ ... }),
+  outputSchema: z.object({
+    confirmed: z.boolean(),
+    timestamp: z.string(),
   }),
-  execute: async ({ inputData, resumeData, suspend }) => {
-    // Check if approval needed
-    if (amount > 1000 && !resumeData?.approved) {
-      return await suspend({ reason: '...', orderDetails: {...} });
-    }
-
-    // Handle approval/rejection
-    if (resumeData?.approved === false) {
-      return { success: false, ... };
-    }
-
-    // Process approved order
-    return { success: true, ... };
+  // Client-side tools return immediately
+  execute: async ({ input }) => {
+    return { confirmed: false, timestamp: new Date().toISOString() };
   },
 });
 ```
 
-### Resuming Workflows
+### UI Rendering
+
+```tsx
+if (part.type === 'tool-askForConfirmation') {
+  const toolInput = part.input as ConfirmationInput;
+
+  switch (part.state) {
+    case 'input-available':
+      // Render interactive component
+      return (
+        <ConfirmationPanel
+          input={toolInput}
+          onRespond={(confirmed) => {
+            addToolResult({
+              toolCallId: part.toolCallId,
+              result: { confirmed, timestamp: new Date().toISOString() },
+            });
+          }}
+        />
+      );
+
+    case 'output-available':
+      // Render completed state
+      return <CompletedConfirmation confirmed={part.output.confirmed} />;
+  }
+}
+```
+
+### Using addToolResult
+
+The `addToolResult` function from `useChat` sends user input back to the agent:
 
 ```typescript
-// Type-safe resume with exported step
-import { priorityProcessingStep } from './workflow';
+const { messages, sendMessage, addToolResult } = useChat({
+  transport: new DefaultChatTransport({
+    api: `${MASTRA_BASE_URL}/api/agents/ask-user-for-stuff/chat`,
+  }),
+  maxSteps: 5, // Allow multiple tool interactions
+});
 
-const result = await run.resume({
-  step: priorityProcessingStep,  // Full type safety
-  resumeData: {
-    approved: true,
-    approverNotes: 'Verified by finance',
+// When user clicks "Confirm"
+addToolResult({
+  toolCallId: part.toolCallId,
+  result: {
+    confirmed: true,
+    timestamp: new Date().toISOString(),
   },
 });
 ```
 
-## Order Types
+## Tool Types
 
-| Type | Shipping | Approval Required |
-|------|----------|-------------------|
-| Standard | 5-7 business days | No |
-| Express | 1-2 business days | No |
-| Priority | Same/next day | Yes, if amount > $1000 |
+### Confirmation Tool
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `title` | string | Dialog title |
+| `message` | string | Explanation of what needs confirming |
+| `confirmLabel` | string | Confirm button text (default: "Confirm") |
+| `cancelLabel` | string | Cancel button text (default: "Cancel") |
+| `variant` | enum | Visual style: `default`, `warning`, `danger` |
+
+### Multiple Choice Tool
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `question` | string | The question to ask |
+| `options` | array | Available choices with `id`, `label`, `description` |
+| `allowMultiple` | boolean | Enable multi-select (default: false) |
+
+### Text Input Tool
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `prompt` | string | Label/prompt for the input |
+| `placeholder` | string | Placeholder text |
+| `multiline` | boolean | Use textarea instead of input |
+| `required` | boolean | Whether input is required |
 
 ## Usage
 
-### Register the Workflow
+### Register the Agent
 
 ```typescript
 // src/mastra/index.ts
 import { Mastra } from '@mastra/core';
-import { orderProcessingWorkflow } from './plugins/ask-user-for-stuff/workflow';
+import { askUserAgent } from './plugins/ask-user-for-stuff/agent';
 
 export const mastra = new Mastra({
-  workflows: {
-    orderProcessingWorkflow,
+  agents: {
+    askUserAgent,
   },
 });
 ```
 
-### Execute the Workflow
+### Use in Your App
 
-```typescript
-const workflow = mastra.getWorkflow('order-processing-workflow');
-const run = await workflow.createRun();
+```tsx
+import { AskUserForStuffDemo } from './plugins/ask-user-for-stuff/ui';
 
-const result = await run.start({
-  inputData: {
-    orderId: 'ORD-123',
-    orderType: 'priority',
-    amount: 1500,
-    items: [{ sku: 'SKU-1', quantity: 1, name: 'Product' }],
-    customerEmail: 'customer@example.com',
-  },
-});
-
-// Handle suspended workflow
-if (result.status === 'suspended') {
-  // Show approval UI
-  const finalResult = await run.resume({
-    step: result.suspended[0],
-    resumeData: { approved: true },
-  });
+export default function InteractivePage() {
+  return <AskUserForStuffDemo />;
 }
 ```
 
-### API Route Example
+## Example Interactions
 
-```typescript
-// app/api/workflows/order-processing/route.ts
-import { mastra } from '@/mastra';
+**User:** "Help me pick a color theme"
 
-export async function POST(req: Request) {
-  const { inputData } = await req.json();
+**Agent:** Uses `askMultipleChoice` tool with options like:
+- Light Mode
+- Dark Mode
+- System Default
 
-  const workflow = mastra.getWorkflow('order-processing-workflow');
-  const run = await workflow.createRun();
-  const result = await run.start({ inputData });
+**User:** Clicks "Dark Mode"
 
-  return Response.json({
-    status: result.status,
-    output: result.output,
-    suspended: result.suspended,
-    runId: run.id,
-  });
-}
-```
+**Agent:** "Great choice! I've noted your preference for Dark Mode."
 
-## Progress Events
+---
 
-The workflow emits custom progress events:
+**User:** "I want to delete my account"
 
-```typescript
-await context?.writer?.custom({
-  type: 'workflow-progress',
-  data: {
-    step: 'validate-order',
-    status: 'completed',
-    message: 'Validation successful',
-  },
-});
-```
+**Agent:** Uses `askForConfirmation` tool with `variant: 'danger'`:
+- Title: "Delete Account?"
+- Message: "This will permanently delete all your data..."
 
-These can be consumed in the UI via `data-custom` parts.
+**User:** Clicks "Cancel"
+
+**Agent:** "No problem, your account remains active."

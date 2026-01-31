@@ -2,366 +2,295 @@
 'use client';
 
 import { useState } from 'react';
-import type { OrderInput, OrderOutput } from './config';
+import { useChat } from '@ai-sdk/react';
+import { DefaultChatTransport } from 'ai';
+import type {
+  ConfirmationInput,
+  MultipleChoiceInput,
+  TextInput,
+} from './config';
 
-/**
- * Order Form Component
- */
-function OrderForm({
-  onSubmit,
-  disabled,
+const MASTRA_BASE_URL = process.env.NEXT_PUBLIC_MASTRA_URL || 'http://localhost:4111';
+
+// =============================================================================
+// Confirmation Panel Component
+// =============================================================================
+
+function ConfirmationPanel({
+  input,
+  onRespond,
 }: {
-  onSubmit: (order: OrderInput) => void;
-  disabled: boolean;
+  input: ConfirmationInput;
+  onRespond: (confirmed: boolean) => void;
 }) {
-  const [orderType, setOrderType] = useState<'standard' | 'express' | 'priority'>('standard');
-  const [amount, setAmount] = useState('99.99');
-  const [email, setEmail] = useState('customer@example.com');
+  const variantStyles = {
+    default: 'border-blue-200 bg-blue-50',
+    warning: 'border-amber-200 bg-amber-50',
+    danger: 'border-red-200 bg-red-50',
+  };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-
-    const order: OrderInput = {
-      orderId: `ORD-${Date.now()}`,
-      orderType,
-      amount: parseFloat(amount),
-      items: [
-        { sku: 'ITEM-001', quantity: 1, name: 'Sample Product' },
-      ],
-      customerEmail: email,
-    };
-
-    onSubmit(order);
+  const confirmStyles = {
+    default: 'bg-blue-600 hover:bg-blue-700',
+    warning: 'bg-amber-600 hover:bg-amber-700',
+    danger: 'bg-red-600 hover:bg-red-700',
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 rounded-lg border bg-white p-6">
-      <h3 className="text-lg font-semibold">Create Test Order</h3>
+    <div className={`rounded-lg border-2 p-6 ${variantStyles[input.variant || 'default']}`}>
+      <h3 className="text-lg font-semibold text-gray-900">{input.title}</h3>
+      <p className="mt-2 text-gray-700">{input.message}</p>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Order Type</label>
-        <select
-          value={orderType}
-          onChange={(e) => setOrderType(e.target.value as typeof orderType)}
-          className="mt-1 block w-full rounded-md border px-3 py-2"
+      <div className="mt-6 flex gap-3">
+        <button
+          onClick={() => onRespond(true)}
+          className={`flex-1 rounded-lg px-4 py-2.5 font-medium text-white transition-colors ${confirmStyles[input.variant || 'default']}`}
         >
-          <option value="standard">Standard (5-7 days)</option>
-          <option value="express">Express (1-2 days)</option>
-          <option value="priority">Priority (Same/Next day)</option>
-        </select>
+          {input.confirmLabel || 'Confirm'}
+        </button>
+        <button
+          onClick={() => onRespond(false)}
+          className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2.5 font-medium text-gray-700 transition-colors hover:bg-gray-50"
+        >
+          {input.cancelLabel || 'Cancel'}
+        </button>
       </div>
+    </div>
+  );
+}
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Amount ($)</label>
-        <input
-          type="number"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          step="0.01"
-          min="0"
-          className="mt-1 block w-full rounded-md border px-3 py-2"
-        />
-        {orderType === 'priority' && parseFloat(amount) > 1000 && (
-          <p className="mt-1 text-xs text-amber-600">
-            High-value priority orders require manual approval
-          </p>
-        )}
-      </div>
+// =============================================================================
+// Multiple Choice Component
+// =============================================================================
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Customer Email</label>
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="mt-1 block w-full rounded-md border px-3 py-2"
-        />
+function MultipleChoicePanel({
+  input,
+  onRespond,
+}: {
+  input: MultipleChoiceInput;
+  onRespond: (selected: string[]) => void;
+}) {
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  const toggleOption = (id: string) => {
+    const newSelected = new Set(selected);
+    if (input.allowMultiple) {
+      if (newSelected.has(id)) {
+        newSelected.delete(id);
+      } else {
+        newSelected.add(id);
+      }
+    } else {
+      // Single select - just pick this one
+      newSelected.clear();
+      newSelected.add(id);
+    }
+    setSelected(newSelected);
+  };
+
+  const handleSubmit = () => {
+    onRespond(Array.from(selected));
+  };
+
+  return (
+    <div className="rounded-lg border-2 border-purple-200 bg-purple-50 p-6">
+      <h3 className="text-lg font-semibold text-gray-900">{input.question}</h3>
+      {input.allowMultiple && (
+        <p className="mt-1 text-sm text-gray-500">Select all that apply</p>
+      )}
+
+      <div className="mt-4 space-y-2">
+        {input.options.map((option) => {
+          const isSelected = selected.has(option.id);
+          return (
+            <button
+              key={option.id}
+              onClick={() => toggleOption(option.id)}
+              className={`w-full rounded-lg border-2 p-4 text-left transition-all ${
+                isSelected
+                  ? 'border-purple-500 bg-purple-100 ring-2 ring-purple-500 ring-offset-2'
+                  : 'border-gray-200 bg-white hover:border-purple-300 hover:bg-purple-50'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div
+                  className={`flex h-5 w-5 items-center justify-center rounded-full border-2 ${
+                    isSelected
+                      ? 'border-purple-500 bg-purple-500'
+                      : 'border-gray-300'
+                  }`}
+                >
+                  {isSelected && (
+                    <svg className="h-3 w-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path
+                        fillRule="evenodd"
+                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  )}
+                </div>
+                <div className="flex-1">
+                  <div className="font-medium text-gray-900">{option.label}</div>
+                  {option.description && (
+                    <div className="text-sm text-gray-500">{option.description}</div>
+                  )}
+                </div>
+              </div>
+            </button>
+          );
+        })}
       </div>
 
       <button
-        type="submit"
-        disabled={disabled}
-        className="w-full rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
+        onClick={handleSubmit}
+        disabled={selected.size === 0}
+        className="mt-4 w-full rounded-lg bg-purple-600 px-4 py-2.5 font-medium text-white transition-colors hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
       >
-        Process Order
+        {input.allowMultiple ? `Select ${selected.size} option${selected.size !== 1 ? 's' : ''}` : 'Continue'}
+      </button>
+    </div>
+  );
+}
+
+// =============================================================================
+// Text Input Component
+// =============================================================================
+
+function TextInputPanel({
+  input,
+  onRespond,
+}: {
+  input: TextInput;
+  onRespond: (value: string) => void;
+}) {
+  const [value, setValue] = useState('');
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (input.required && !value.trim()) return;
+    onRespond(value);
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="rounded-lg border-2 border-green-200 bg-green-50 p-6">
+      <label className="block text-lg font-semibold text-gray-900">
+        {input.prompt}
+      </label>
+
+      {input.multiline ? (
+        <textarea
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder={input.placeholder}
+          rows={4}
+          className="mt-3 w-full rounded-lg border border-gray-300 px-4 py-2.5 focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-500"
+        />
+      ) : (
+        <input
+          type="text"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder={input.placeholder}
+          className="mt-3 w-full rounded-lg border border-gray-300 px-4 py-2.5 focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-500"
+        />
+      )}
+
+      <button
+        type="submit"
+        disabled={input.required && !value.trim()}
+        className="mt-4 w-full rounded-lg bg-green-600 px-4 py-2.5 font-medium text-white transition-colors hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        Submit
       </button>
     </form>
   );
 }
 
-/**
- * Workflow Progress Display
- */
-function WorkflowProgress({
-  events,
-}: {
-  events: Array<{ step: string; status: string; message: string }>;
-}) {
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return 'bg-green-500';
-      case 'processing':
-        return 'bg-blue-500 animate-pulse';
-      case 'suspended':
-        return 'bg-amber-500';
-      case 'failed':
-        return 'bg-red-500';
-      default:
-        return 'bg-gray-400';
-    }
-  };
+// =============================================================================
+// Completed Response Display
+// =============================================================================
 
+function CompletedConfirmation({ confirmed }: { confirmed: boolean }) {
   return (
-    <div className="rounded-lg border bg-white p-4">
-      <h4 className="text-sm font-medium text-gray-700">Workflow Progress</h4>
-      <div className="mt-3 space-y-2">
-        {events.map((event, i) => (
-          <div key={i} className="flex items-center gap-3">
-            <span className={`h-2 w-2 rounded-full ${getStatusColor(event.status)}`} />
-            <span className="text-sm font-medium text-gray-900">{event.step}</span>
-            <span className="text-sm text-gray-500">{event.message}</span>
-          </div>
-        ))}
+    <div className={`rounded-lg p-4 ${confirmed ? 'bg-green-100' : 'bg-gray-100'}`}>
+      <div className="flex items-center gap-2">
+        {confirmed ? (
+          <>
+            <svg className="h-5 w-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+            </svg>
+            <span className="font-medium text-green-800">Confirmed</span>
+          </>
+        ) : (
+          <>
+            <svg className="h-5 w-5 text-gray-600" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+            </svg>
+            <span className="font-medium text-gray-800">Cancelled</span>
+          </>
+        )}
       </div>
     </div>
   );
 }
 
-/**
- * Approval Dialog for Suspended Workflows
- */
-function ApprovalDialog({
-  suspendPayload,
-  onApprove,
-  onReject,
-}: {
-  suspendPayload: {
-    reason: string;
-    orderDetails: { orderId: string; amount: number; customerEmail: string };
-  };
-  onApprove: (notes?: string) => void;
-  onReject: (notes?: string) => void;
-}) {
-  const [notes, setNotes] = useState('');
+function CompletedChoice({ selected, options }: { selected: string[]; options: Array<{ id: string; label: string }> }) {
+  const selectedLabels = options
+    .filter((opt) => selected.includes(opt.id))
+    .map((opt) => opt.label);
 
   return (
-    <div className="rounded-lg border border-amber-200 bg-amber-50 p-6">
-      <h4 className="text-lg font-semibold text-amber-800">Approval Required</h4>
-      <p className="mt-1 text-sm text-amber-700">{suspendPayload.reason}</p>
-
-      <div className="mt-4 rounded-lg bg-white p-4">
-        <h5 className="text-sm font-medium text-gray-700">Order Details</h5>
-        <dl className="mt-2 space-y-1 text-sm">
-          <div className="flex justify-between">
-            <dt className="text-gray-500">Order ID:</dt>
-            <dd className="font-mono text-gray-900">{suspendPayload.orderDetails.orderId}</dd>
-          </div>
-          <div className="flex justify-between">
-            <dt className="text-gray-500">Amount:</dt>
-            <dd className="font-semibold text-gray-900">
-              ${suspendPayload.orderDetails.amount.toFixed(2)}
-            </dd>
-          </div>
-          <div className="flex justify-between">
-            <dt className="text-gray-500">Customer:</dt>
-            <dd className="text-gray-900">{suspendPayload.orderDetails.customerEmail}</dd>
-          </div>
-        </dl>
-      </div>
-
-      <div className="mt-4">
-        <label className="block text-sm font-medium text-gray-700">Notes (optional)</label>
-        <textarea
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          className="mt-1 block w-full rounded-md border px-3 py-2"
-          rows={2}
-          placeholder="Add approval notes..."
-        />
-      </div>
-
-      <div className="mt-4 flex gap-2">
-        <button
-          onClick={() => onApprove(notes)}
-          className="flex-1 rounded-lg bg-green-600 px-4 py-2 text-white hover:bg-green-700"
-        >
-          Approve
-        </button>
-        <button
-          onClick={() => onReject(notes || 'Rejected by reviewer')}
-          className="flex-1 rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700"
-        >
-          Reject
-        </button>
-      </div>
-    </div>
-  );
-}
-
-/**
- * Order Result Display
- */
-function OrderResult({ result }: { result: OrderOutput }) {
-  const statusColors = {
-    processed: 'border-green-200 bg-green-50',
-    failed: 'border-red-200 bg-red-50',
-    pending_review: 'border-amber-200 bg-amber-50',
-  };
-
-  return (
-    <div className={`rounded-lg border p-6 ${statusColors[result.status]}`}>
-      <div className="flex items-center justify-between">
-        <h4 className="text-lg font-semibold">
-          Order {result.orderId}
-        </h4>
-        <span
-          className={`rounded-full px-3 py-1 text-sm font-medium ${
-            result.status === 'processed'
-              ? 'bg-green-100 text-green-800'
-              : result.status === 'failed'
-              ? 'bg-red-100 text-red-800'
-              : 'bg-amber-100 text-amber-800'
-          }`}
-        >
-          {result.status}
+    <div className="rounded-lg bg-purple-100 p-4">
+      <div className="flex items-center gap-2">
+        <svg className="h-5 w-5 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
+          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+        </svg>
+        <span className="font-medium text-purple-800">
+          Selected: {selectedLabels.join(', ')}
         </span>
       </div>
-
-      <dl className="mt-4 space-y-2 text-sm">
-        <div className="flex justify-between">
-          <dt className="text-gray-500">Shipping Estimate:</dt>
-          <dd className="text-gray-900">{result.shippingEstimate}</dd>
-        </div>
-        {result.trackingNumber && (
-          <div className="flex justify-between">
-            <dt className="text-gray-500">Tracking:</dt>
-            <dd className="font-mono text-gray-900">{result.trackingNumber}</dd>
-          </div>
-        )}
-        <div className="flex justify-between">
-          <dt className="text-gray-500">Processing Time:</dt>
-          <dd className="text-gray-900">{result.processingTime}ms</dd>
-        </div>
-      </dl>
-
-      {result.notes.length > 0 && (
-        <div className="mt-4 border-t pt-4">
-          <h5 className="text-sm font-medium text-gray-700">Notes</h5>
-          <ul className="mt-1 space-y-1">
-            {result.notes.map((note, i) => (
-              <li key={i} className="text-sm text-gray-600">
-                • {note}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
     </div>
   );
 }
+
+function CompletedText({ value }: { value: string }) {
+  return (
+    <div className="rounded-lg bg-green-100 p-4">
+      <div className="flex items-start gap-2">
+        <svg className="mt-0.5 h-5 w-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+        </svg>
+        <span className="font-medium text-green-800">"{value}"</span>
+      </div>
+    </div>
+  );
+}
+
+// =============================================================================
+// Main Demo Component
+// =============================================================================
 
 /**
  * Ask User for Stuff Demo
  *
- * An order processing workflow that pauses to ask humans for approval.
- * Priority orders over $1000 require a thumbs up before processing!
+ * Demonstrates client-side tools that render interactive UI components
+ * for collecting user input: confirmations, multiple choice, and text input.
  */
 export function AskUserForStuffDemo() {
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [progressEvents, setProgressEvents] = useState<
-    Array<{ step: string; status: string; message: string }>
-  >([]);
-  const [suspendedPayload, setSuspendedPayload] = useState<{
-    reason: string;
-    orderDetails: { orderId: string; amount: number; customerEmail: string };
-  } | null>(null);
-  const [result, setResult] = useState<OrderOutput | null>(null);
-  const [workflowRun, setWorkflowRun] = useState<{ resume: (data: unknown) => Promise<unknown> } | null>(null);
+  const [input, setInput] = useState('');
 
-  const handleSubmit = async (order: OrderInput) => {
-    setIsProcessing(true);
-    setProgressEvents([]);
-    setSuspendedPayload(null);
-    setResult(null);
+  const { messages, sendMessage, addToolResult, status } = useChat({
+    transport: new DefaultChatTransport({
+      api: `${MASTRA_BASE_URL}/api/agents/ask-user-for-stuff/chat`,
+    }),
+    maxSteps: 5, // Allow multiple tool calls
+  });
 
-    try {
-      // In a real app, this would call your Mastra API
-      // const workflow = mastra.getWorkflow('order-processing-workflow');
-      // const run = await workflow.createRun();
-
-      // Simulated workflow execution
-      const response = await fetch('/api/workflows/order-processing/run', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ inputData: order }),
-      });
-
-      const data = await response.json();
-
-      // Handle workflow result
-      if (data.status === 'suspended') {
-        setSuspendedPayload(data.suspendPayload);
-        setWorkflowRun({ resume: async (resumeData) => {
-          const resumeResponse = await fetch('/api/workflows/order-processing/resume', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ runId: data.runId, resumeData }),
-          });
-          return resumeResponse.json();
-        }});
-      } else if (data.status === 'completed') {
-        setResult(data.output);
-      }
-    } catch (error) {
-      console.error('Workflow error:', error);
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const handleApprove = async (notes?: string) => {
-    if (!workflowRun) return;
-
-    setIsProcessing(true);
-    setSuspendedPayload(null);
-
-    try {
-      const data = await workflowRun.resume({
-        approved: true,
-        approverNotes: notes,
-      });
-
-      if ((data as { output: OrderOutput }).output) {
-        setResult((data as { output: OrderOutput }).output);
-      }
-    } catch (error) {
-      console.error('Resume error:', error);
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const handleReject = async (notes?: string) => {
-    if (!workflowRun) return;
-
-    setIsProcessing(true);
-    setSuspendedPayload(null);
-
-    try {
-      const data = await workflowRun.resume({
-        approved: false,
-        approverNotes: notes,
-      });
-
-      if ((data as { output: OrderOutput }).output) {
-        setResult((data as { output: OrderOutput }).output);
-      }
-    } catch (error) {
-      console.error('Resume error:', error);
-    } finally {
-      setIsProcessing(false);
-    }
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!input.trim()) return;
+    sendMessage({ text: input });
+    setInput('');
   };
 
   return (
@@ -369,23 +298,184 @@ export function AskUserForStuffDemo() {
       <div className="text-center">
         <h1 className="text-2xl font-bold">Ask User for Stuff</h1>
         <p className="text-gray-500">
-          Big orders need a thumbs up before we ship!
+          Interactive tools that collect user input through rich UI
         </p>
       </div>
 
-      <OrderForm onSubmit={handleSubmit} disabled={isProcessing} />
+      {/* Messages */}
+      <div className="space-y-4">
+        {messages.length === 0 && (
+          <div className="rounded-lg bg-gray-50 p-6 text-center text-gray-500">
+            <p>Try asking things like:</p>
+            <ul className="mt-2 space-y-1 text-sm">
+              <li>"Help me pick a color theme"</li>
+              <li>"I want to delete my account"</li>
+              <li>"What's your name?"</li>
+            </ul>
+          </div>
+        )}
 
-      {progressEvents.length > 0 && <WorkflowProgress events={progressEvents} />}
+        {messages.map((message) => (
+          <div key={message.id} className="space-y-3">
+            {message.parts.map((part, index) => {
+              // User messages
+              if (part.type === 'text' && message.role === 'user') {
+                return (
+                  <div key={index} className="flex justify-end">
+                    <div className="rounded-lg bg-blue-600 px-4 py-2 text-white">
+                      {part.text}
+                    </div>
+                  </div>
+                );
+              }
 
-      {suspendedPayload && (
-        <ApprovalDialog
-          suspendPayload={suspendedPayload}
-          onApprove={handleApprove}
-          onReject={handleReject}
+              // Assistant text
+              if (part.type === 'text' && message.role === 'assistant') {
+                return (
+                  <div key={index} className="rounded-lg bg-gray-100 px-4 py-2 text-gray-900">
+                    {part.text}
+                  </div>
+                );
+              }
+
+              // =================================================================
+              // Confirmation Tool
+              // =================================================================
+              if (part.type === 'tool-askForConfirmation') {
+                const toolInput = part.input as ConfirmationInput;
+
+                switch (part.state) {
+                  case 'input-streaming':
+                  case 'input-available':
+                    return (
+                      <ConfirmationPanel
+                        key={index}
+                        input={toolInput}
+                        onRespond={(confirmed) => {
+                          addToolResult({
+                            toolCallId: part.toolCallId,
+                            result: {
+                              confirmed,
+                              timestamp: new Date().toISOString(),
+                            },
+                          });
+                        }}
+                      />
+                    );
+
+                  case 'output-available':
+                    return (
+                      <CompletedConfirmation
+                        key={index}
+                        confirmed={(part.output as { confirmed: boolean }).confirmed}
+                      />
+                    );
+
+                  default:
+                    return null;
+                }
+              }
+
+              // =================================================================
+              // Multiple Choice Tool
+              // =================================================================
+              if (part.type === 'tool-askMultipleChoice') {
+                const toolInput = part.input as MultipleChoiceInput;
+
+                switch (part.state) {
+                  case 'input-streaming':
+                  case 'input-available':
+                    return (
+                      <MultipleChoicePanel
+                        key={index}
+                        input={toolInput}
+                        onRespond={(selected) => {
+                          addToolResult({
+                            toolCallId: part.toolCallId,
+                            result: {
+                              selected,
+                              timestamp: new Date().toISOString(),
+                            },
+                          });
+                        }}
+                      />
+                    );
+
+                  case 'output-available':
+                    return (
+                      <CompletedChoice
+                        key={index}
+                        selected={(part.output as { selected: string[] }).selected}
+                        options={toolInput.options}
+                      />
+                    );
+
+                  default:
+                    return null;
+                }
+              }
+
+              // =================================================================
+              // Text Input Tool
+              // =================================================================
+              if (part.type === 'tool-askForText') {
+                const toolInput = part.input as TextInput;
+
+                switch (part.state) {
+                  case 'input-streaming':
+                  case 'input-available':
+                    return (
+                      <TextInputPanel
+                        key={index}
+                        input={toolInput}
+                        onRespond={(value) => {
+                          addToolResult({
+                            toolCallId: part.toolCallId,
+                            result: {
+                              value,
+                              timestamp: new Date().toISOString(),
+                            },
+                          });
+                        }}
+                      />
+                    );
+
+                  case 'output-available':
+                    return (
+                      <CompletedText
+                        key={index}
+                        value={(part.output as { value: string }).value}
+                      />
+                    );
+
+                  default:
+                    return null;
+                }
+              }
+
+              return null;
+            })}
+          </div>
+        ))}
+      </div>
+
+      {/* Input */}
+      <form onSubmit={handleSubmit} className="flex gap-2">
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="Ask me something..."
+          className="flex-1 rounded-lg border px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
-      )}
-
-      {result && <OrderResult result={result} />}
+        <button
+          type="submit"
+          disabled={status !== 'ready' || !input.trim()}
+          className="rounded-lg bg-blue-600 px-6 py-2 font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Send
+        </button>
+      </form>
     </div>
   );
 }
