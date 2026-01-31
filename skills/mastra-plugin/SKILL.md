@@ -986,3 +986,16 @@ export const mastra = new Mastra({
 | `completed` | Successfully finished | Read result |
 | `suspended` | Awaiting input/approval | Call `run.resume()` |
 | `failed` | Error occurred | Check error, retry |
+
+## Examples
+
+See the `examples/` folder for complete, runnable examples:
+
+### [Generative UI](./examples/generative-ui/)
+Dynamic UI rendering based on tool execution states. Weather agent with custom card components.
+
+### [Nested Agent Streams](./examples/nested-agent-streams/)
+Calling agents from within tools and streaming their output to the UI in real-time.
+
+### [Branching Workflow](./examples/branching-workflow/)
+Conditional workflow routing with human-in-the-loop approval for high-value orders.

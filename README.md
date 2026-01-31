@@ -1,216 +1,120 @@
-# MagicSchool Memory Storage Adapter for Mastra
+# AI Skillz
 
-This adapter allows Mastra's memory system to work with MagicSchool's existing `assistant_threads` and `assistant_thread_messages` tables.
+Claude Code skills for scaffolding Mastra.ai projects with agents, tools, memory, workflows, evals, and UI.
 
-## Features
+## What is this?
 
-- **Bidirectional support**: Read existing data and write new data
-- **Native bigint IDs**: Uses bigint IDs as strings directly (no UUID conversion needed)
-- **Bigint precision**: Keeps IDs as strings to preserve precision for large bigints (> 2^53)
-- **Content transformation**: Converts between MagicSchool's content format and Mastra's `MastraMessageContentV2`
-- **Soft deletes**: Respects your existing `status` and `deleted` columns
+This repository contains [Claude Code skills](https://docs.anthropic.com/en/docs/claude-code/skills) - reusable prompts that help Claude Code scaffold complete Mastra.ai modules and components with best practices built in.
+
+## Available Skills
+
+### mastra-module
+
+Create comprehensive Mastra.ai agent modules with full feature support.
+
+```
+/mastra-module weatherAgent
+```
+
+**Features:**
+- Agents with custom instructions and tool bindings
+- Tools with typed schemas and streaming support
+- Memory with semantic recall and working memory
+- Workflows with human-in-the-loop approval
+- Evals for quality assurance
+- UI components for tool rendering
+- Workspace variants for multi-tenant configs
+
+**Generated files:**
+```
+{directory}/
+├── config.ts           # Module ID, shared types, schemas
+├── agent.ts            # Agent definition
+├── tools.ts            # Tool definitions
+├── memory.ts           # Memory configuration
+├── workflow.ts         # Workflow with suspend/resume
+├── processors.ts       # Input/Output processors
+├── ui.tsx              # Client-side UI components
+├── evals.ts            # Agent evaluation tests
+├── {moduleName}.test.ts
+├── package.json
+├── vitest.config.ts
+├── tsconfig.json
+└── README.md
+```
+
+### mastra-plugin
+
+Create Mastra.ai plugins following the plugin directory convention.
+
+```
+/mastra-plugin weatherAgent
+```
+
+Same features as `mastra-module`, but defaults to `src/mastra/plugins/{plugin-id}/` directory structure.
+
+### create-tool-ui
+
+Create UI components for rendering AI SDK tool calls in chat interfaces.
+
+```
+/create-tool-ui rubricFeedback
+```
+
+**Generated files:**
+```
+{directory}/
+├── config.ts   # Tool ID, Input/Output types
+├── tool.ts     # createTool() definition (server-side)
+└── ui.tsx      # createToolUI() client components
+```
+
+**Tool states handled:**
+| State | When | Props |
+|-------|------|-------|
+| `input-streaming` | LLM generating args | `input` (partial) |
+| `input-available` | Args complete, executing | `input` |
+| `output-streaming` | Tool streaming output | `input`, `output` (partial) |
+| `output-available` | Tool complete | `input`, `output` |
+| `output-error` | Tool failed | `input`, `errorText` |
+
+## Installation
+
+Copy the `skills/` directory to your Claude Code skills location:
+
+```bash
+# Copy to global skills
+cp -r skills/* ~/.claude/skills/
+
+# Or copy to project-local skills
+cp -r skills/* .claude/skills/
+```
 
 ## Usage
 
-### Recommended: MastraCompositeStore
+Once installed, invoke skills in Claude Code:
 
-Use `MastraCompositeStore` to route the memory domain to your existing tables, while letting Mastra's default PostgresStore handle everything else (workflows, traces, evals, resources, agents).
-
-```typescript
-import { Mastra } from '@mastra/core';
-import { MastraCompositeStore } from '@mastra/core/storage';
-import { PostgresStore } from '@mastra/pg';
-import { createServiceRoleSupabaseClient } from '@magicschool/supabase/clients/server';
-import { MagicSchoolMemoryStorage } from '@/features/mastra/storage';
-
-// Default storage for all other domains (workflows, traces, evals, resources, agents)
-// Note: Vercel+Supabase integration uses POSTGRES_URL, local dev typically uses DATABASE_URL
-const connectionString = process.env.DATABASE_URL ?? process.env.POSTGRES_URL;
-const defaultStorage = new PostgresStore({
-  id: 'mastra-default',
-  connectionString: connectionString!,
-});
-
-// Custom memory storage that uses your existing tables
-// Note: Threads must be created via createToolThread before using Mastra memory
-const memoryStorage = new MagicSchoolMemoryStorage({
-  supabase: createServiceRoleSupabaseClient(),
-});
-
-export const mastra = new Mastra({
-  storage: new MastraCompositeStore({
-    id: 'magicschool-composite',
-    default: defaultStorage,  // Handles: workflows, traces, evals, resources, agents
-    domains: {
-      memory: memoryStorage,  // Handles: threads, messages (your existing tables)
-    },
-  }),
-});
+```
+/mastra-plugin myAgent --features agent,tools,memory,workflow
 ```
 
-This approach:
-- **Memory domain** → Your existing `assistant_threads` and `assistant_thread_messages` tables
-- **All other domains** → Mastra's standard tables (`mastra_resources`, `mastra_workflow_snapshot`, `mastra_ai_spans`, etc.)
+Claude will interactively prompt for any missing arguments like directory path.
 
-### Basic Setup (Memory Only)
+## Research
 
-If you only need memory functionality without other Mastra features:
+The `research/` directory contains design documents and analysis:
 
-```typescript
-import { Memory } from '@mastra/memory';
-import { Agent } from '@mastra/core/agent';
-import { createServiceRoleSupabaseClient } from '@magicschool/supabase/clients/server';
-import { MagicSchoolMemoryStorage } from '@/features/mastra/storage';
+- [Chat Plugin Registry Design](research/chat-plugin-registry-design.md) - Registry architecture for chat plugins
+- [Mastra Memory Impact Analysis](research/mastra-memory-impact-analysis.md) - Analysis of Mastra's memory system
 
-const storage = new MagicSchoolMemoryStorage({
-  supabase: createServiceRoleSupabaseClient(),
-});
+## Requirements
 
-const memory = new Memory({
-  storage,
-  options: {
-    lastMessages: 20,
-  },
-});
+- [Claude Code](https://claude.com/claude-code) CLI
+- Node.js 18+
+- pnpm (recommended) or npm
 
-const agent = new Agent({
-  id: 'my-agent',
-  name: 'My Agent',
-  instructions: 'You are a helpful assistant.',
-  model: 'openai/gpt-4o',
-  memory,
-});
-```
+## Related
 
-### Generating/Streaming with Memory
-
-```typescript
-// Using existing thread by its bigint ID
-// ResourceId formats:
-//   - "user:{uuid}" for user-scoped working memory
-//   - "tool-slug:{uuid}" for tool-scoped working memory (e.g., "raina-chat:uuid")
-const response = await agent.generate('Hello!', {
-  memory: {
-    thread: '12345', // Your existing bigint ID as a string
-    resource: 'user:ffbb9d9f-cc94-406a-a746-7455a3c82c85',
-  },
-});
-
-// Or with tool-scoped resourceId
-const response2 = await agent.generate('Hello!', {
-  memory: {
-    thread: '12345',
-    resource: 'raina-chat:ffbb9d9f-cc94-406a-a746-7455a3c82c85',
-  },
-});
-
-// Creating a new thread
-const newThread = await memory.createThread({
-  resourceId: 'user:ffbb9d9f-cc94-406a-a746-7455a3c82c85',
-  title: 'New Conversation',
-  metadata: {
-    _toolUuid: 'specific-tool-uuid', // Optional: override default
-  },
-});
-
-const stream = await agent.stream('Hello!', {
-  memory: {
-    thread: newThread.id,
-    resource: newThread.resourceId,
-  },
-});
-```
-
-## ID Handling
-
-This adapter uses **bigint IDs as strings** directly:
-
-- No UUID conversion needed - Mastra accepts string IDs
-- Bigint precision preserved (JavaScript numbers lose precision > 2^53)
-- Supabase handles string-to-bigint conversion in queries
-- Pass your existing bigint IDs directly as strings
-
-```typescript
-// Use existing thread by its bigint ID
-const response = await agent.generate('Hello!', {
-  memory: {
-    thread: '12345678901234567890', // Large bigint as string
-    resource: 'user:ffbb9d9f-cc94-406a-a746-7455a3c82c85', // User-scoped format
-  },
-});
-```
-
-## Content Format Transformation
-
-Your messages use this format:
-```json
-[
-  { "type": "text", "text": "Hello" },
-  { "type": "tool_inputs", "toolId": "my-tool", "inputs": { "arg": "value" } },
-  { "type": "tool_output", "toolId": "my-tool", "output": "Result" }
-]
-```
-
-Mastra expects:
-```json
-{
-  "format": 2,
-  "parts": [
-    { "type": "text", "text": "Hello" },
-    { "type": "tool-invocation", "toolName": "my-tool", "state": "call", "args": {...} }
-  ]
-}
-```
-
-The adapter handles this transformation automatically in both directions.
-
-## Storage Domains
-
-When using `MastraCompositeStore`, Mastra's storage is split into domains:
-
-| Domain | Tables | Handler |
-|--------|--------|---------|
-| `memory` | threads, messages, resources | `MagicSchoolMemoryStorage` (threads/messages in your existing tables, resources in `mastra.mastra_resources`) |
-| `workflows` | `mastra_workflow_snapshot` | Default `PostgresStore` |
-| `observability` | `mastra_ai_spans` | Default `PostgresStore` |
-| `scores` | `mastra_scorers` | Default `PostgresStore` |
-| `agents` | `mastra_agents` | Default `PostgresStore` |
-
-The `mastra_resources` table (for working memory) is in the `mastra` schema and is accessed directly by `MagicSchoolMemoryStorage`.
-
-## Limitations
-
-1. **No `updatedAt` column**: Your threads table doesn't have `updatedAt`, so `createdAt` is used as fallback.
-
-## Schema Requirements
-
-Your existing tables should have:
-
-```sql
--- assistant_threads
-CREATE TABLE assistant_threads (
-  id BIGINT PRIMARY KEY,
-  user_id UUID NOT NULL,
-  title TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  assistant_data JSONB,
-  deleted BOOLEAN DEFAULT FALSE,
-  saved BOOLEAN DEFAULT FALSE,
-  status row_status DEFAULT 'active',
-  tool_uuid UUID NOT NULL,
-  tool_customization_id UUID,
-  preview_mode TEXT
-);
-
--- assistant_thread_messages
-CREATE TABLE assistant_thread_messages (
-  id BIGINT PRIMARY KEY,
-  assistant_thread_id BIGINT REFERENCES assistant_threads(id),
-  user_id UUID NOT NULL,
-  role VARCHAR NOT NULL,
-  content JSONB NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  status row_status DEFAULT 'active',
-  message_payload JSONB
-);
-```
+- [Mastra.ai Documentation](https://mastra.ai/docs)
+- [Claude Code Skills](https://docs.anthropic.com/en/docs/claude-code/skills)
+- [AI SDK](https://sdk.vercel.ai/docs)
