@@ -1,38 +1,44 @@
 // examples/research-bot/config.ts
 import { z } from 'zod';
 
-export const researchPluginConfig = {
-  id: 'research-plugin',
-  name: 'Research Plugin',
+export const researchBotConfig = {
+  id: 'research-bot',
+  name: 'Research Bot',
   version: '1.0.0',
 } as const;
 
-// Research Tool Schemas
+// =============================================================================
+// Deep Research Tool Schemas
+// =============================================================================
+
 export const researchInputSchema = z.object({
   topic: z.string().describe('The topic to research'),
-  depth: z.enum(['brief', 'detailed', 'comprehensive']).default('detailed'),
+  depth: z.enum(['quick', 'standard', 'deep']).default('standard')
+    .describe('How thorough the research should be'),
 });
 
 export const researchOutputSchema = z.object({
   topic: z.string(),
   summary: z.string(),
-  keyPoints: z.array(z.string()),
-  sources: z.array(z.string()).optional(),
+  keyFindings: z.array(z.object({
+    point: z.string(),
+    importance: z.enum(['high', 'medium', 'low']),
+  })),
+  relatedTopics: z.array(z.string()),
+  confidence: z.number().min(0).max(1),
 });
 
 export type ResearchInput = z.infer<typeof researchInputSchema>;
 export type ResearchOutput = z.infer<typeof researchOutputSchema>;
 
-// Analysis Agent Schemas
-export const analysisInputSchema = z.object({
-  content: z.string().describe('Content to analyze'),
-});
+// =============================================================================
+// Expert Agent (nested) Schemas
+// =============================================================================
 
-export const analysisOutputSchema = z.object({
+export const expertAnalysisSchema = z.object({
   analysis: z.string(),
-  sentiment: z.enum(['positive', 'neutral', 'negative']),
+  keyInsights: z.array(z.string()),
   confidence: z.number().min(0).max(1),
 });
 
-export type AnalysisInput = z.infer<typeof analysisInputSchema>;
-export type AnalysisOutput = z.infer<typeof analysisOutputSchema>;
+export type ExpertAnalysis = z.infer<typeof expertAnalysisSchema>;

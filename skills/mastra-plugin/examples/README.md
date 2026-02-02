@@ -1,133 +1,150 @@
 # Mastra Plugin Examples
 
-This folder contains example implementations demonstrating key Mastra patterns.
+Four examples demonstrating key Mastra patterns. Each showcases a different way tools and agents can interact with users.
 
 ## Examples
 
-### 1. [Trip Planner](./trip-planner/)
+### 1. [Trip Planner](./trip-planner/) - Multi-Tool Generative UI
 
-A weather-aware trip planning assistant with dynamic UI that updates as the agent works.
+A travel assistant with **three tools**, each rendering a distinct visual component.
 
-**Key Patterns:**
-- Tool state handling (`input-streaming`, `input-available`, `output-available`, `output-error`)
-- Custom card components for tool outputs
-- Real-time streaming updates
-- Weather API integration
+**Pattern:** Multiple tools → Multiple UI components with different designs
 
-**Files:**
-- `config.ts` - Schemas and types
-- `agent.ts` - Weather agent
-- `tools.ts` - Weather tool with wttr.in API
-- `ui.tsx` - Chat interface with generative UI
+**Tools:**
+| Tool | Output | UI |
+|------|--------|-----|
+| `getWeather` | Weather + forecast | Blue gradient card |
+| `findPlaces` | Places by category | Category-colored cards |
+| `generateMap` | GeoJSON + viewer link | Emerald map card with geojson.io link |
 
----
-
-### 2. [Research Bot](./research-bot/)
-
-A research assistant that spawns specialized sub-agents for deep analysis.
-
-**Key Patterns:**
-- `context.mastra.getAgent()` - Retrieve agents in tools
-- `stream.fullStream.pipeTo(context.writer)` - Pipe nested agent output
-- `context.writer.custom()` - Emit progress events
-- `data-tool-agent` part handling in UI
-
-**Files:**
-- `config.ts` - Schemas and types
-- `agents.ts` - Research agent + Analysis agent
-- `tools.ts` - Deep research tool with nested agent
-- `ui.tsx` - UI with agent thinking display
+**Files:** `config.ts`, `agent.ts`, `tools.ts`, `ui.tsx`
 
 ---
 
-### 3. [Ask User for Stuff](./ask-user-for-stuff/)
+### 2. [Research Bot](./research-bot/) - Nested Agent Streaming
 
-An agent with client-side tools that render interactive UI for collecting user input.
+Watch a sub-agent "think out loud" as it streams its analysis to the UI.
 
-**Key Patterns:**
-- Client-side tools with `addToolResult()` for user responses
-- Confirmation dialogs with variants (default, warning, danger)
-- Multiple choice selectors (single and multi-select)
-- Text input panels (single-line and multiline)
+**Pattern:** Tool calls nested agent → Stream piped to UI → Real-time thinking display
 
-**Files:**
-- `config.ts` - Tool schemas (confirmation, multiple choice, text)
-- `agent.ts` - Agent with client-side tools
-- `tools.ts` - Tool definitions
-- `ui.tsx` - Interactive UI components for each tool type
+**Key Code:**
+```typescript
+// In tool execute:
+const expertAgent = context.mastra.getAgent('expert-agent');
+const stream = await expertAgent.stream({ messages: [...] });
+await stream.fullStream.pipeTo(context.writer); // Creates data-tool-agent parts
+```
+
+**UI Part:** `data-tool-agent` renders the expert's streamed thinking
+
+**Files:** `config.ts`, `agents.ts`, `tools.ts`, `ui.tsx`
 
 ---
 
-## Common Patterns
+### 3. [Ask User for Stuff](./ask-user-for-stuff/) - Client-Side Tools
 
-### File Structure
+Tools that render interactive UI and wait for user input.
 
-Each example follows the plugin organizational pattern:
+**Pattern:** Tool renders UI → User interacts → `addToolResult()` sends response
+
+**Tools:**
+| Tool | UI | User Action |
+|------|-----|-------------|
+| `askForConfirmation` | Yes/No buttons | Click to confirm/cancel |
+| `askMultipleChoice` | Option cards | Select one or more |
+| `askForText` | Input field | Type and submit |
+
+**Files:** `config.ts`, `agent.ts`, `tools.ts`, `ui.tsx`
+
+---
+
+### 4. [Content Moderation](./content-moderation/) - Guardrails with Processors
+
+Add safety guardrails using `inputProcessors` and `outputProcessors`.
+
+**Pattern:** Processors intercept messages → Validate/transform/block → Before or after LLM
+
+**Built-in Processors:**
+| Processor | Purpose |
+|-----------|---------|
+| `ModerationProcessor` | Detect/block harmful content |
+| `PromptInjectionDetector` | Block jailbreak attempts |
+| `PIIDetector` | Redact personal information |
+| `UnicodeNormalizer` | Prevent unicode smuggling |
+
+**Key Code:**
+```typescript
+import { layeredSecurity } from './content-moderation/processors';
+
+const agent = new Agent({
+  name: 'safe-agent',
+  inputProcessors: layeredSecurity,
+});
+```
+
+**Files:** `processors.ts` (no agent wrapper, tools, UI, or config needed)
+
+---
+
+## Pattern Comparison
+
+| Example | Server Execution | UI Streaming | User Input | Guardrails |
+|---------|------------------|--------------|------------|------------|
+| Trip Planner | ✅ Tools call APIs | ✅ Tool states | ❌ | ❌ |
+| Research Bot | ✅ Nested agent | ✅ Agent stream | ❌ | ❌ |
+| Ask User | ❌ Client-side | ✅ Tool states | ✅ addToolResult | ❌ |
+| Content Moderation | ✅ Agent only | ❌ | ❌ | ✅ Processors |
+
+## Common File Structure
 
 ```
 example-name/
-├── config.ts    # Plugin config, Zod schemas, types
-├── agent.ts     # Agent definitions (if applicable)
-├── agents.ts    # Multiple agents (if applicable)
-├── tools.ts     # Tool definitions
-├── workflow.ts  # Workflow definitions (if applicable)
-├── ui.tsx       # React UI components
-└── README.md    # Example documentation
+├── config.ts    # Zod schemas and types
+├── agent.ts     # Agent definition(s)
+├── tools.ts     # Tool implementations
+├── ui.tsx       # React components
+└── README.md    # Documentation
 ```
 
-### Registering with Mastra
+## Registering with Mastra
 
 ```typescript
 // src/mastra/index.ts
 import { Mastra } from '@mastra/core';
 import { tripPlannerAgent } from './plugins/trip-planner/agent';
-import { researchAgent, analysisAgent } from './plugins/research-bot/agents';
+import { researchBot, expertAgent } from './plugins/research-bot/agents';
 import { askUserAgent } from './plugins/ask-user-for-stuff/agent';
+import { layeredSecurity } from './plugins/content-moderation/processors';
 
 export const mastra = new Mastra({
   agents: {
-    tripPlannerAgent,
-    researchAgent,
-    analysisAgent,
-    askUserAgent,
+    'trip-planner': tripPlannerAgent,
+    'research-bot': researchBot,
+    'expert-agent': expertAgent, // Required for nested streaming
+    'ask-user-for-stuff': askUserAgent,
   },
 });
+
+// Apply processors to any agent:
+// inputProcessors: layeredSecurity
 ```
 
-### Environment Variables
+## Environment Variables
 
 ```bash
-# Mastra server URL (for frontend)
 NEXT_PUBLIC_MASTRA_URL=http://localhost:4111
-
-# Required API keys
 OPENAI_API_KEY=sk-...
-
-# Database (optional, defaults to file-based)
-DATABASE_URL=file:.mastra/data/app.db
 ```
 
 ## Running Examples
 
-1. **Install dependencies:**
-   ```bash
-   pnpm install
-   ```
-
-2. **Start Mastra server:**
-   ```bash
-   pnpm mastra dev
-   ```
-
-3. **Start your frontend:**
-   ```bash
-   pnpm dev
-   ```
-
-4. **Navigate to example routes** and interact with the demos.
+```bash
+pnpm install
+pnpm mastra dev    # Start Mastra server
+pnpm dev           # Start frontend
+```
 
 ## Additional Resources
 
 - [Mastra Documentation](https://mastra.ai/docs)
 - [AI SDK UI Guide](https://mastra.ai/guides/build-your-ui/ai-sdk-ui)
-- [Workflow Suspend/Resume](https://mastra.ai/docs/workflows/suspend-and-resume)

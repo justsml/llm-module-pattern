@@ -1,51 +1,83 @@
 // examples/research-bot/agents.ts
 import { Agent } from '@mastra/core/agent';
-import { researchPluginConfig } from './config';
+import { researchBotConfig } from './config';
 import { deepResearchTool } from './tools';
 
 /**
- * Analysis Agent
+ * Expert Agent (Nested)
  *
- * A specialized agent for analyzing content.
- * This agent is called from within the deepResearchTool
- * to provide analysis of research findings.
+ * A specialized agent that provides expert analysis.
+ * This agent is NOT used directly by users - it's called from within the
+ * deepResearchTool to provide detailed analysis.
+ *
+ * IMPORTANT: This agent must be registered with Mastra for the nested
+ * streaming pattern to work. The tool uses context.mastra.getAgent('expert-agent')
+ * to retrieve it.
  */
-export const analysisAgent = new Agent({
-  id: 'analysis-agent',
-  name: 'Analysis Agent',
-  instructions: `
-    You are an expert analyst. Your role is to:
-    - Analyze content for key insights
-    - Determine overall sentiment (positive, neutral, negative)
-    - Provide confidence scores for your analysis
-    - Be objective and thorough
+export const expertAgent = new Agent({
+  name: 'expert-agent',
+  instructions: `You are an expert analyst with deep knowledge across many domains.
 
-    Always structure your response with clear analysis points.
-  `,
-  model: 'openai/gpt-4o',
+Your role is to provide thorough, well-structured analysis when consulted.
+
+Guidelines:
+- Think step by step, explaining your reasoning
+- Mark key findings with importance levels: HIGH, MEDIUM, or LOW
+- Identify connections to related topics
+- Be honest about your confidence level
+- Use clear formatting with headers and bullet points
+
+When analyzing, always consider:
+- Current state and context
+- Historical background
+- Future implications
+- Potential controversies or debates
+- Practical applications`,
+  model: {
+    provider: 'OPEN_AI',
+    name: 'gpt-4o',
+  },
 });
 
 /**
- * Research Agent
+ * Research Bot (Main Agent)
  *
- * The main agent that coordinates research tasks.
- * Uses the deepResearchTool which internally calls the analysisAgent.
+ * The primary agent that users interact with. When asked to research a topic,
+ * it uses the deepResearchTool which internally streams from the expertAgent.
+ *
+ * This creates a "nested agent streaming" experience where:
+ * 1. User asks Research Bot a question
+ * 2. Research Bot calls deepResearchTool
+ * 3. deepResearchTool calls expertAgent and streams its response
+ * 4. User sees expertAgent's thinking in real-time
+ * 5. Tool returns structured findings
+ * 6. Research Bot summarizes the results
  */
-export const researchAgent = new Agent({
-  id: researchPluginConfig.id,
-  name: researchPluginConfig.name,
-  instructions: `
-    You are a research assistant that helps users explore topics in depth.
+export const researchBot = new Agent({
+  name: researchBotConfig.id,
+  instructions: `You are a research assistant that helps users explore topics in depth.
 
-    When asked to research a topic:
-    - Use the deepResearchTool to gather and analyze information
-    - The tool will stream analysis from a nested agent
-    - Synthesize the results into a clear, actionable response
+When users ask you to research something:
+1. Use the deepResearch tool to analyze the topic
+2. The tool will consult an expert agent (users will see its thinking in real-time)
+3. Summarize the key findings in a clear, actionable way
 
-    Be thorough but concise in your explanations.
-  `,
-  model: 'openai/gpt-4o',
+You can adjust research depth:
+- "quick" for brief overviews
+- "standard" for thorough analysis
+- "deep" for exhaustive investigation
+
+Be conversational and helpful. Highlight the most important findings and
+suggest follow-up questions the user might want to explore.`,
+  model: {
+    provider: 'OPEN_AI',
+    name: 'gpt-4o',
+  },
   tools: {
-    deepResearchTool,
+    deepResearch: deepResearchTool,
   },
 });
+
+// Also export with original names for backwards compatibility
+export const analysisAgent = expertAgent;
+export const researchAgent = researchBot;

@@ -1,13 +1,16 @@
 // examples/trip-planner/config.ts
 import { z } from 'zod';
 
-export const weatherPluginConfig = {
-  id: 'weather-plugin',
-  name: 'Weather Plugin',
+export const tripPlannerConfig = {
+  id: 'trip-planner',
+  name: 'Trip Planner Plugin',
   version: '1.0.0',
 } as const;
 
+// =============================================================================
 // Weather Tool Schemas
+// =============================================================================
+
 export const weatherInputSchema = z.object({
   location: z.string().describe('City name or location to get weather for'),
 });
@@ -15,11 +18,89 @@ export const weatherInputSchema = z.object({
 export const weatherOutputSchema = z.object({
   location: z.string(),
   temperature: z.number(),
+  feelsLike: z.number(),
   description: z.string(),
   humidity: z.number(),
   windSpeed: z.number(),
-  icon: z.string().optional(),
+  uvIndex: z.number(),
+  forecast: z.array(
+    z.object({
+      date: z.string(),
+      high: z.number(),
+      low: z.number(),
+      description: z.string(),
+    })
+  ),
 });
 
 export type WeatherInput = z.infer<typeof weatherInputSchema>;
 export type WeatherOutput = z.infer<typeof weatherOutputSchema>;
+
+// =============================================================================
+// Places Tool Schemas
+// =============================================================================
+
+export const placesInputSchema = z.object({
+  location: z.string().describe('City or area to search'),
+  category: z.enum(['attractions', 'restaurants', 'hotels', 'activities'])
+    .describe('Type of places to find'),
+  limit: z.number().default(5).describe('Number of results'),
+});
+
+export const placesOutputSchema = z.object({
+  location: z.string(),
+  category: z.string(),
+  places: z.array(
+    z.object({
+      name: z.string(),
+      description: z.string(),
+      rating: z.number().optional(),
+      priceLevel: z.string().optional(),
+      tags: z.array(z.string()),
+    })
+  ),
+});
+
+export type PlacesInput = z.infer<typeof placesInputSchema>;
+export type PlacesOutput = z.infer<typeof placesOutputSchema>;
+
+// =============================================================================
+// GeoJSON Map Tool Schemas
+// =============================================================================
+
+export const geojsonInputSchema = z.object({
+  location: z.string().describe('Central location for the map'),
+  points: z.array(
+    z.object({
+      name: z.string().describe('Name of the point of interest'),
+      description: z.string().optional().describe('Description of the location'),
+      lat: z.number().describe('Latitude coordinate'),
+      lng: z.number().describe('Longitude coordinate'),
+      type: z.enum(['attraction', 'restaurant', 'hotel', 'activity', 'other']).default('other'),
+    })
+  ).describe('Points of interest to display on the map'),
+});
+
+export const geojsonOutputSchema = z.object({
+  location: z.string(),
+  geojson: z.object({
+    type: z.literal('FeatureCollection'),
+    features: z.array(z.object({
+      type: z.literal('Feature'),
+      properties: z.object({
+        name: z.string(),
+        description: z.string().optional(),
+        markerType: z.string(),
+      }),
+      geometry: z.object({
+        type: z.literal('Point'),
+        coordinates: z.tuple([z.number(), z.number()]),
+      }),
+    })),
+  }),
+  viewerUrl: z.string().describe('URL to view the GeoJSON on geojson.io'),
+  pointCount: z.number(),
+});
+
+export type GeoJsonInput = z.infer<typeof geojsonInputSchema>;
+export type GeoJsonOutput = z.infer<typeof geojsonOutputSchema>;

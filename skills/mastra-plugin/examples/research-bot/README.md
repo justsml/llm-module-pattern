@@ -1,92 +1,157 @@
 # Research Bot
 
-A research assistant that spawns a specialized analysis sub-agent to dive deep into topics. Watch it think in real-time!
+Demonstrates **Nested Agent Streaming** - the pattern of calling an agent from within a tool and streaming its output to the UI in real-time. Users see the expert agent "thinking out loud" as it analyzes their topic.
 
 ## Features
 
-- **Nested Agent Invocation**: The research bot calls an analysis agent from within its tools
-- **Stream Piping**: See the nested agent's thinking streamed live to the UI
-- **Custom Events**: Progress tracking shows what stage of research we're in
-- **Multi-part Rendering**: Handle `data-tool-agent` parts in the UI
+- **Nested Agent Streaming**: Tool calls a sub-agent and pipes its stream to the UI
+- **Real-time Thinking**: Watch the expert agent reason through the topic live
+- **Progress Events**: Custom events show research phases (starting → analyzing → complete)
+- **Structured Output**: Final results include importance-ranked findings
 
 ## File Structure
 
 ```
 research-bot/
-├── config.ts    # Plugin config and Zod schemas
-├── agents.ts    # Research agent + Analysis agent definitions
-├── tools.ts     # Deep research tool with nested agent
-├── ui.tsx       # React components with stream handling
+├── config.ts    # Research and expert schemas
+├── agents.ts    # Research Bot + Expert Agent definitions
+├── tools.ts     # Deep research tool with nested streaming
+├── ui.tsx       # React components for stream rendering
 └── README.md    # This file
 ```
 
-## How It Works
+## The Nested Agent Streaming Pattern
 
-### 1. Tool Retrieves Nested Agent
+This is the key pattern demonstrated:
+
+```
+┌─────────────┐     ┌─────────────┐     ┌──────────────┐
+│    User     │────▶│ Research Bot│────▶│ deepResearch │
+└─────────────┘     └─────────────┘     │    Tool      │
+                                        └──────┬───────┘
+                                               │
+                    ┌──────────────────────────┘
+                    │  context.mastra.getAgent()
+                    ▼
+              ┌─────────────┐
+              │Expert Agent │
+              └──────┬──────┘
+                     │  agent.stream()
+                     ▼
+              ┌─────────────┐
+              │   Stream    │───▶ stream.fullStream.pipeTo(context.writer)
+              └─────────────┘              │
+                                           ▼
+                                    ┌─────────────┐
+                                    │     UI      │
+                                    │ data-tool-  │
+                                    │   agent     │
+                                    └─────────────┘
+```
+
+## Key Code Patterns
+
+### 1. Get Agent from Context
 
 ```typescript
-execute: async (inputData, context) => {
-  const analysisAgent = context?.mastra?.getAgent('analysis-agent');
-  // ...
+// Inside tool execute function
+const expertAgent = context?.mastra?.getAgent('expert-agent');
+
+if (!expertAgent) {
+  throw new Error('Expert agent not registered');
 }
 ```
 
-### 2. Stream the Agent's Response
+### 2. Stream and Pipe to UI
 
 ```typescript
-const stream = await analysisAgent.stream({
+// Stream the expert's response
+const stream = await expertAgent.stream({
   messages: [{ role: 'user', content: prompt }],
 });
 
-// Pipe to context writer for real-time streaming
+// Pipe directly to UI - this creates `data-tool-agent` parts
 await stream.fullStream.pipeTo(context.writer);
+
+// Get final text after streaming completes
+const analysisText = await stream.text;
 ```
 
-### 3. Handle Custom Events
+### 3. Emit Progress Events
 
 ```typescript
+// Custom events appear as `data-custom` parts
 await context?.writer?.custom({
-  type: 'research-started',
-  data: { topic, startedAt: new Date().toISOString() },
+  type: 'research-phase',
+  data: {
+    phase: 'analyzing',
+    message: 'Expert agent is thinking...',
+  },
 });
 ```
 
-### 4. Render in UI
+### 4. Render Nested Agent Stream
 
 ```tsx
-// Nested agent stream
+// The key UI handler
 if (part.type === 'data-tool-agent') {
-  return <AgentThinkingStream content={part.content} />;
-}
-
-// Custom events
-if (part.type === 'data-custom') {
-  return <CustomEventBadge event={part.data} />;
+  // This is the expert agent's streamed content!
+  return <ExpertThinking content={part.content} />;
 }
 ```
 
 ## Message Part Types
 
-| Part Type | Description |
-|-----------|-------------|
-| `text` | Regular text content |
-| `tool-{toolId}` | Tool execution with states |
-| `data-tool-agent` | Streamed content from nested agent |
-| `data-custom` | Custom events from `context.writer.custom()` |
+| Part Type | Source | UI Component |
+|-----------|--------|--------------|
+| `text` | Regular text responses | Message bubble |
+| `tool-deepResearch` | Tool execution states | Loading/Results card |
+| `data-tool-agent` | **Nested agent stream** | Expert thinking panel |
+| `data-custom` | Progress events | Phase indicator |
+
+## Two-Agent Architecture
+
+### Expert Agent (Nested)
+
+Called internally by the tool. Users never interact with it directly.
+
+```typescript
+export const expertAgent = new Agent({
+  name: 'expert-agent',
+  instructions: `You are an expert analyst...`,
+  model: { provider: 'OPEN_AI', name: 'gpt-4o' },
+  // No tools - this agent just thinks and responds
+});
+```
+
+### Research Bot (User-Facing)
+
+The agent users chat with. It uses a tool that calls the expert.
+
+```typescript
+export const researchBot = new Agent({
+  name: 'research-bot',
+  instructions: `You are a research assistant...`,
+  model: { provider: 'OPEN_AI', name: 'gpt-4o' },
+  tools: {
+    deepResearch: deepResearchTool, // This tool calls expertAgent
+  },
+});
+```
 
 ## Usage
 
-### Register Both Agents
+### Register BOTH Agents
 
 ```typescript
 // src/mastra/index.ts
 import { Mastra } from '@mastra/core';
-import { researchAgent, analysisAgent } from './plugins/research-bot/agents';
+import { researchBot, expertAgent } from './plugins/research-bot/agents';
 
 export const mastra = new Mastra({
   agents: {
-    researchAgent,
-    analysisAgent, // Must be registered for getAgent() to work
+    'research-bot': researchBot,
+    'expert-agent': expertAgent, // REQUIRED for getAgent() to work!
   },
 });
 ```
@@ -101,19 +166,29 @@ export default function ResearchPage() {
 }
 ```
 
-## Key Patterns
+## Example Interaction
 
-### Context Writer
+**User:** "Research quantum computing"
 
-The `context.writer` enables:
-- Streaming nested agent output to the UI
-- Emitting custom progress events
-- Creating rich, interactive experiences
+**UI shows:**
+1. 🚀 Phase indicator: "Researching: quantum computing"
+2. 🧠 Expert agent thinking panel (streams in real-time):
+   ```
+   Let me analyze quantum computing...
 
-### Agent Retrieval
+   **Overview**
+   Quantum computing leverages quantum mechanical phenomena...
 
-Agents must be registered with Mastra to be accessible via `context.mastra.getAgent()`.
+   **Key Findings**
+   - HIGH: Quantum supremacy demonstrated by Google in 2019...
+   - MEDIUM: Current quantum computers have limited qubits...
+   ```
+3. ✅ Phase indicator: "Research complete"
+4. 🔬 Research card with structured findings
 
-### Stream Processing
+## Why Nested Agent Streaming?
 
-The `fullStream` provides access to all stream events, which can be piped directly to the context writer for real-time UI updates.
+- **Specialization**: Different agents can have different expertise
+- **Transparency**: Users see the reasoning process, building trust
+- **Composability**: Tools can orchestrate multiple agents
+- **Rich UX**: Real-time streaming creates engaging experiences
