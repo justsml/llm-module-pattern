@@ -72,13 +72,38 @@ Add safety guardrails using `inputProcessors` and `outputProcessors`.
 | `PIIDetector` | Redact personal information |
 | `UnicodeNormalizer` | Prevent unicode smuggling |
 
-**Key Code:**
+**Key Code (Mastra Agent):**
 ```typescript
 import { layeredSecurity } from './content-moderation/processors';
 
 const agent = new Agent({
   name: 'safe-agent',
   inputProcessors: layeredSecurity,
+});
+```
+
+**AI SDK Compatible (via `withMastra`):**
+```typescript
+import { mastra } from '@mastra/core';
+import { openai } from '@ai-sdk/openai';
+import { streamText } from 'ai';
+import { layeredSecurity, inputModeration, outputModeration } from './content-moderation/processors';
+
+// Wrap any AI SDK model with processors
+const safeChatModel = mastra.withMastra(openai('gpt-5-mini'), {
+  inputProcessors: layeredSecurity,
+});
+
+// Use with standard AI SDK functions
+const result = await streamText({
+  model: safeChatModel,
+  messages: [{ role: 'user', content: userInput }],
+});
+
+// Separate input/output moderation
+const balancedModel = mastra.withMastra(openai('gpt-5-mini'), {
+  inputProcessors: [inputModeration],   // Block harmful input
+  outputProcessors: [outputModeration], // Rewrite harmful output
 });
 ```
 

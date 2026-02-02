@@ -96,7 +96,7 @@ export const {pluginName}Agent = new Agent({
     - Use available tools when appropriate
     - Ask for clarification if needed
   `,
-  model: 'openai/gpt-4o',
+  model: 'openai/gpt-5-mini',
   tools: {
     {toolName}Tool,
   },
@@ -483,7 +483,7 @@ describe('{PluginName} Agent Evaluations', () => {
           });
 
           const scorer = createNoiseSensitivityScorerLLM({
-            model: 'openai/gpt-4o',
+            model: 'openai/gpt-5-mini',
             options: {
               baselineResponse: testCase.baselineResponse,
               noisyQuery: testCase.noisyQuery!,
@@ -932,7 +932,7 @@ export const {workspaceName}Agent = new Agent({
     Additional workspace-specific guidelines:
     - ...
   `,
-  model: 'openai/gpt-4o',
+  model: 'openai/gpt-5-mini',
   tools: {
     {toolName}Tool,
     // Additional workspace-specific tools

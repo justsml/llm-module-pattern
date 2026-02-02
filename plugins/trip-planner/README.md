@@ -55,7 +55,7 @@ Creates a GeoJSON FeatureCollection with points of interest and returns a link t
 export const tripPlannerAgent = new Agent({
   name: 'trip-planner',
   instructions: `You are an enthusiastic travel assistant...`,
-  model: { provider: 'OPEN_AI', name: 'gpt-4o' },
+  model: { provider: 'OPEN_AI', name: 'gpt-5-mini' },
   tools: {
     getWeather: weatherTool,
     findPlaces: placesTool,

@@ -76,7 +76,7 @@ Adding memory capabilities to LLM chat systems through Mastra's tool-calling app
 - **Total per turn**: ~200-900 additional tokens
 
 **Cost Impact**:
-- **gpt-4o** ($2.50/$10 per 1M input/output tokens): $0.0005-$0.009 per tool call
+- **gpt-5-mini** ($2.50/$10 per 1M input/output tokens): $0.0005-$0.009 per tool call
 - **gpt-5-mini** ($0.30/$1.20 per 1M input/output tokens): $0.00006-$0.001 per tool call
 - **Frequency impact**: If 20% of turns trigger working memory updates, adds ~2-5% to baseline costs
 
@@ -89,7 +89,7 @@ Adding memory capabilities to LLM chat systems through Mastra's tool-calling app
 
 **Total memory context overhead**: 3,200-9,000 tokens per request (5-15% of typical context window)
 
-**Cost Calculation** (assuming gpt-4o at $2.50/1M input tokens):
+**Cost Calculation** (assuming gpt-5-mini at $2.50/1M input tokens):
 - Baseline conversation (no memory): 50K tokens → $0.125
 - With memory (8K additional tokens): 58K tokens → $0.145 (+16%)
 - **Incremental cost**: $0.02 per request (+16%)
@@ -138,7 +138,7 @@ Adding memory capabilities to LLM chat systems through Mastra's tool-calling app
    - **Limitation**: Only viable for historical message backfill, not real-time conversations
 
 7. **Model Routing**:
-   - Route simple queries to smaller models (gpt-5-mini) and complex queries to larger models (gpt-4o)
+   - Route simple queries to smaller models (gpt-5-mini) and complex queries to larger models (gpt-5-mini)
    - **Impact**: 40-70% cost reduction across mixed workloads
 
 8. **Response Caching**:
@@ -220,7 +220,7 @@ Adding memory capabilities to LLM chat systems through Mastra's tool-calling app
 ### 2.5 Memory Context Injection Overhead
 
 **Token Processing Time** (by model):
-- **gpt-4o**: ~0.1ms per token (input processing)
+- **gpt-5-mini**: ~0.1ms per token (input processing)
 - **gpt-5-mini**: ~0.05ms per token
 - **Memory context (8K tokens)**: 400-800ms additional prefill time
 
@@ -328,7 +328,7 @@ Adding memory capabilities to LLM chat systems through Mastra's tool-calling app
 - **Use cases**: Referencing earlier decisions, recalling user preferences mentioned 50+ turns ago
 
 **Research Findings**:
-- **Zep framework**: Achieved 15.2% accuracy improvement (gpt-4o-mini) and 18.5% improvement (gpt-4o) with semantic memory vs. baseline
+- **Zep framework**: Achieved 15.2% accuracy improvement (gpt-5-mini) and 18.5% improvement (gpt-5-mini) with semantic memory vs. baseline
 - **Embedding quality**: Higher-capacity embedding models yield stronger recall and context linkage
 - **Retrieval accuracy**: Bounded by embedding quality and domain shift; poorly calibrated embeddings miss relevant memories
 
@@ -423,7 +423,7 @@ User Input → Embedding Generation → Vector Retrieval → Memory Context Inje
 
 ### 4.2 withMastra() Wrapper Function
 
-**Purpose**: Wraps a base language model (e.g., `openai('gpt-4o')`) with memory capabilities while staying within the AI SDK ecosystem.
+**Purpose**: Wraps a base language model (e.g., `openai('gpt-5-mini')`) with memory capabilities while staying within the AI SDK ecosystem.
 
 **Implementation** (from `/apps/magicschool/src/util/mastraMemory.ts`):
 ```typescript
@@ -874,7 +874,7 @@ For most applications, start with this configuration and iterate based on metric
 - **Total memory overhead**: 8,000 tokens (~15% of 128k window)
 
 **Cost Estimate** (1M conversations/month):
-- Baseline (no memory): ~$125K/month (gpt-4o)
+- Baseline (no memory): ~$125K/month (gpt-5-mini)
 - With memory: ~$145K/month (+16%)
 - **Incremental cost**: $20K/month for 15-25% quality improvement
 

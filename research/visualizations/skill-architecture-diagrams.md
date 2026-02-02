@@ -36,6 +36,16 @@ This diagram illustrates the structure and data flow of the `create-tool-ui` ski
 | 3D Glass | ![3D Glass](./images/multi-plugin-architecture-v4.png) |
 | Minimalist | ![Minimalist](./images/multi-plugin-architecture-v5.png) |
 
+### AI SDK Plugin Stacks Variations
+
+| Style | Image |
+|-------|-------|
+| Standard | ![Standard](./images/ai-sdk-plugin-stacks-v1.png) |
+| Isometric | ![Isometric](./images/ai-sdk-plugin-stacks-v2.png) |
+| Top-down | ![Top-down](./images/ai-sdk-plugin-stacks-v3.png) |
+| Circuit | ![Circuit](./images/ai-sdk-plugin-stacks-v4.png) |
+| Exploded | ![Exploded](./images/ai-sdk-plugin-stacks-v5.png) |
+
 ```mermaid
 graph TD
     subgraph "Server Side"

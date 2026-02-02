@@ -30,7 +30,7 @@ export const askUserAgent = new Agent({
     engaging than just text back-and-forth.`,
   model: {
     provider: 'OPEN_AI',
-    name: 'gpt-4o',
+    name: 'gpt-5-mini',
   },
   tools: {
     askForConfirmation: confirmationTool,

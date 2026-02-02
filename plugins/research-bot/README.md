@@ -119,7 +119,7 @@ Called internally by the tool. Users never interact with it directly.
 export const expertAgent = new Agent({
   name: 'expert-agent',
   instructions: `You are an expert analyst...`,
-  model: { provider: 'OPEN_AI', name: 'gpt-4o' },
+  model: { provider: 'OPEN_AI', name: 'gpt-5-mini' },
   // No tools - this agent just thinks and responds
 });
 ```
@@ -132,7 +132,7 @@ The agent users chat with. It uses a tool that calls the expert.
 export const researchBot = new Agent({
   name: 'research-bot',
   instructions: `You are a research assistant...`,
-  model: { provider: 'OPEN_AI', name: 'gpt-4o' },
+  model: { provider: 'OPEN_AI', name: 'gpt-5-mini' },
   tools: {
     deepResearch: deepResearchTool, // This tool calls expertAgent
   },

@@ -959,7 +959,7 @@ export class SafetyProcessorPlugin extends BasePlugin<SafetyProcessorConfig> {
     defaults: {
       moderation: {
         enabled: true,
-        model: 'openai/gpt-4o-mini',
+        model: 'openai/gpt-5-mini',
         categories: ['hate', 'harassment', 'violence'],
         threshold: 0.7,
         strategy: 'warn',
@@ -972,7 +972,7 @@ export class SafetyProcessorPlugin extends BasePlugin<SafetyProcessorConfig> {
       },
       injection: {
         enabled: true,
-        model: 'openai/gpt-4o-mini',
+        model: 'openai/gpt-5-mini',
         threshold: 0.8,
         strategy: 'block',
       },

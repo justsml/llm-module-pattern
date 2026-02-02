@@ -35,7 +35,7 @@ When analyzing, always consider:
 - Practical applications`,
   model: {
     provider: 'OPEN_AI',
-    name: 'gpt-4o',
+    name: 'gpt-5-mini',
   },
 });
 
@@ -71,7 +71,7 @@ Be conversational and helpful. Highlight the most important findings and
 suggest follow-up questions the user might want to explore.`,
   model: {
     provider: 'OPEN_AI',
-    name: 'gpt-4o',
+    name: 'gpt-5-mini',
   },
   tools: {
     deepResearch: deepResearchTool,

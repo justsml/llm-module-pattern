@@ -46,7 +46,7 @@ You have access to three powerful tools:
 Remember: You can use multiple tools in sequence to give comprehensive answers!`,
   model: {
     provider: 'OPEN_AI',
-    name: 'gpt-4o',
+    name: 'gpt-5-mini',
   },
   tools: {
     getWeather: weatherTool,
