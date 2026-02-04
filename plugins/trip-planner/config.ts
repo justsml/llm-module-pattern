@@ -1,6 +1,11 @@
 // examples/trip-planner/config.ts
 import { z } from 'zod';
 
+/**
+ * Plugin Metadata
+ *
+ * Required for all plugins. Declares basic identity.
+ */
 export const tripPlannerConfig = {
   id: 'trip-planner',
   name: 'Trip Planner Plugin',
@@ -104,3 +109,72 @@ export const geojsonOutputSchema = z.object({
 
 export type GeoJsonInput = z.infer<typeof geojsonInputSchema>;
 export type GeoJsonOutput = z.infer<typeof geojsonOutputSchema>;
+
+// =============================================================================
+// Plugin Manifest
+// =============================================================================
+
+/**
+ * Plugin Manifest
+ *
+ * Declares what features this plugin provides. The config/index is required
+ * and should declare the parts of the plugin that are available.
+ *
+ * This plugin provides:
+ * - tools: Weather, places discovery, and map generation
+ * - agents: A trip planning assistant
+ * - ui: Visual components for each tool output
+ * - schemas: Typed input/output for all tools
+ */
+export const tripPlannerPlugin = {
+  ...tripPlannerConfig,
+
+  /**
+   * Declares available features.
+   * Used by consuming applications to understand what this plugin provides.
+   */
+  features: {
+    tools: true,
+    agents: true,
+    ui: true,
+    processors: false,
+    storage: false,
+  },
+
+  /**
+   * Tool IDs provided by this plugin.
+   * Actual implementations are in tools.ts
+   */
+  toolIds: ['getWeather', 'findPlaces', 'generateMap'] as const,
+
+  /**
+   * Agent IDs provided by this plugin.
+   * Actual implementations are in agent.ts
+   */
+  agentIds: ['trip-planner'] as const,
+
+  /**
+   * UI component mappings.
+   * Maps tool IDs to component identifiers for rendering.
+   */
+  uiComponents: {
+    'tool-getWeather': 'WeatherCard',
+    'tool-findPlaces': 'PlacesCard',
+    'tool-generateMap': 'GeoJsonCard',
+  } as const,
+
+  /**
+   * All schemas exported by this plugin.
+   * Enables type-safe consumption across package boundaries.
+   */
+  schemas: {
+    weatherInput: weatherInputSchema,
+    weatherOutput: weatherOutputSchema,
+    placesInput: placesInputSchema,
+    placesOutput: placesOutputSchema,
+    geojsonInput: geojsonInputSchema,
+    geojsonOutput: geojsonOutputSchema,
+  },
+} as const;
+
+export type TripPlannerPlugin = typeof tripPlannerPlugin;
